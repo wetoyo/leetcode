@@ -1,0 +1,88 @@
+name: Rotate today/ into past/
+
+# If today/ is non-empty, rename it to yesterday's date and move it into
+# past/, then create a fresh empty today/ in its place.
+
+on:
+  schedule:
+    # 05:10 UTC ~= 00:10/01:10 America/New_York, i.e. shortly after midnight ET.
+    - cron: "10 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rotate-today
+  cancel-in-progress: false
+
+jobs:
+  rotate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Rotate today/ into past/
+        env:
+          TZ: America/New_York
+        run: |
+          set -euo pipefail
+
+          # Date of "the previous day" relative to now (ET).
+          prev_day="$(date -d 'yesterday' +%Y-%m-%d)"
+          echo "Archiving today/ under date: $prev_day"
+
+          today_dir="today"
+          past_dir="past"
+
+          if [ ! -d "$today_dir" ]; then
+            echo "skip (no today/)"
+            echo "ROTATED=0" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
+          # Non-empty means it has anything other than .gitkeep in it.
+          if [ -z "$(find "$today_dir" -mindepth 1 ! -name '.gitkeep')" ]; then
+            echo "skip (today/ is empty)"
+            echo "ROTATED=0" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
+          mkdir -p "$past_dir"
+
+          dest="${past_dir}/${prev_day}"
+          if [ -e "$dest" ]; then
+            n=2
+            while [ -e "${past_dir}/${prev_day}-${n}" ]; do
+              n=$((n + 1))
+            done
+            dest="${past_dir}/${prev_day}-${n}"
+          fi
+
+          git mv "$today_dir" "$dest"
+          mkdir -p "$today_dir"
+          touch "$today_dir/.gitkeep"
+          git add "$today_dir/.gitkeep"
+          echo "rotated ${today_dir} -> ${dest}"
+          echo "ROTATED=1" >> "$GITHUB_ENV"
+
+      - name: Commit and push
+        run: |
+          set -euo pipefail
+
+          if [ "${ROTATED:-0}" -eq 0 ]; then
+            echo "Nothing to rotate."
+            exit 0
+          fi
+
+          if git diff --cached --quiet && git diff --quiet; then
+            echo "No file changes detected."
+            exit 0
+          fi
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Archive today/ as $(TZ=America/New_York date -d 'yesterday' +%Y-%m-%d)"
+          git push

@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+
+# C#
+bin/
+obj/
+*.user
+
+# Java
+*.class
+target/
+
+# C++
+*.o
+*.obj
+*.out
+*.exe
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
