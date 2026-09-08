@@ -1,0 +1,39 @@
+name: New LeetCode Problem
+
+on:
+  workflow_dispatch:
+    inputs:
+      leetcode_url:
+        description: "LeetCode problem URL (e.g. https://leetcode.com/problems/two-sum/)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  new-problem:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run new_problem.py
+        run: echo "${{ inputs.leetcode_url }}" | python templates/new_problem.py
+
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add today/
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "New problem: ${{ inputs.leetcode_url }}"
+            git push
+          fi
