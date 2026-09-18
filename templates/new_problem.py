@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 """
 Prompt for a LeetCode problem URL and populate the headers in
-today/README.md, today/Solution.cs, and today/solution.py.
+today/README.md plus whichever solution files are enabled:
+today/solution.py, today/Solution.cs, today/Solution.cpp, today/Solution.java.
+
+Set GENERATE_PYTHON / GENERATE_CSHARP / GENERATE_CPP / GENERATE_JAVA to
+"true"/"false" to control which solution files get generated (all default
+to enabled).
 
 If a file is missing from today/ (e.g. right after the nightly rotation),
 it is first copied over from templates/ before its header is filled in.
@@ -12,6 +17,7 @@ Usage:
 """
 
 import json
+import os
 import re
 import shutil
 import sys
@@ -167,6 +173,67 @@ def update_py(meta: dict, slug: str) -> None:
     print(f"Updated {path.relative_to(REPO_ROOT)}")
 
 
+def update_cpp(meta: dict, slug: str) -> None:
+    path = ensure_today_file("Solution.cpp")
+    content = path.read_text(encoding="utf-8")
+
+    header = (
+        f"// LeetCode #{meta['number']} - {meta['title']}\n"
+        f"// https://leetcode.com/problems/{slug}/\n"
+        f"//\n"
+        f"// Difficulty: {meta['difficulty']}\n"
+        f"// Topics: {meta['topics']}\n"
+        f"//\n"
+        f"// Approach:\n"
+        f"//\n"
+        f"// Time:  O()\n"
+        f"// Space: O()\n"
+    )
+
+    existing_header = re.match(r"(?:^//.*\n)+", content, flags=re.MULTILINE)
+    if existing_header:
+        content = header + content[existing_header.end() :]
+    else:
+        content = header + "\n" + content
+
+    path.write_text(content, encoding="utf-8")
+    print(f"Updated {path.relative_to(REPO_ROOT)}")
+
+
+def update_java(meta: dict, slug: str) -> None:
+    path = ensure_today_file("Solution.java")
+    content = path.read_text(encoding="utf-8")
+
+    header = (
+        f"// LeetCode #{meta['number']} - {meta['title']}\n"
+        f"// https://leetcode.com/problems/{slug}/\n"
+        f"//\n"
+        f"// Difficulty: {meta['difficulty']}\n"
+        f"// Topics: {meta['topics']}\n"
+        f"//\n"
+        f"// Approach:\n"
+        f"//\n"
+        f"// Time:  O()\n"
+        f"// Space: O()\n"
+    )
+
+    existing_header = re.match(r"(?:^//.*\n)+", content, flags=re.MULTILINE)
+    if existing_header:
+        content = header + content[existing_header.end() :]
+    else:
+        content = header + "\n" + content
+
+    path.write_text(content, encoding="utf-8")
+    print(f"Updated {path.relative_to(REPO_ROOT)}")
+
+
+def env_flag(name: str, default: bool = True) -> bool:
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in ("1", "true", "yes", "on")
+
+
 def main() -> None:
     url = input("LeetCode problem URL: ").strip()
     slug = extract_slug(url)
@@ -178,8 +245,15 @@ def main() -> None:
         meta = prompt_manual_metadata(slug)
 
     update_readme(meta, slug)
-    update_cs(meta, slug)
-    update_py(meta, slug)
+
+    if env_flag("GENERATE_PYTHON"):
+        update_py(meta, slug)
+    if env_flag("GENERATE_CSHARP"):
+        update_cs(meta, slug)
+    if env_flag("GENERATE_CPP"):
+        update_cpp(meta, slug)
+    if env_flag("GENERATE_JAVA"):
+        update_java(meta, slug)
 
 
 if __name__ == "__main__":

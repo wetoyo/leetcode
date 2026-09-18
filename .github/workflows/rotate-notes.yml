@@ -1,7 +1,8 @@
 name: Rotate today/ into past/
 
-# If today/ is non-empty, rename it to yesterday's date and move it into
-# past/, then create a fresh empty today/ in its place.
+# If today/ is non-empty, rename it to "<LeetCode number> - <problem name>"
+# (falling back to yesterday's date if that metadata can't be parsed) and
+# move it into past/, then create a fresh empty today/ in its place.
 
 on:
   schedule:
@@ -29,9 +30,9 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Date of "the previous day" relative to now (ET).
+          # Date of "the previous day" relative to now (ET); used as a
+          # fallback name when problem metadata can't be parsed.
           prev_day="$(date -d 'yesterday' +%Y-%m-%d)"
-          echo "Archiving today/ under date: $prev_day"
 
           today_dir="today"
           past_dir="past"
@@ -51,13 +52,31 @@ jobs:
 
           mkdir -p "$past_dir"
 
-          dest="${past_dir}/${prev_day}"
+          # Prefer "<LeetCode number> - <problem name>" parsed from the
+          # README (populated by templates/new_problem.py). Fall back to
+          # the date if the README is missing or still has placeholder text.
+          readme="$today_dir/README.md"
+          base_name=""
+          if [ -f "$readme" ]; then
+            number="$(grep -m1 -oP '(?<=LeetCode #)[0-9]+' "$readme" || true)"
+            title="$(grep -m1 '^# ' "$readme" | sed 's/^# //' || true)"
+            if [ -n "$number" ] && [ -n "$title" ] && [ "$title" != "<Title>" ]; then
+              safe_title="$(echo "$title" | sed -e 's/[\/:*?"<>|]/_/g' -e 's/[[:space:]]\+/ /g' -e 's/^ *//' -e 's/ *$//')"
+              base_name="${number} - ${safe_title}"
+            fi
+          fi
+          if [ -z "$base_name" ]; then
+            base_name="$prev_day"
+          fi
+          echo "Archiving today/ as: $base_name"
+
+          dest="${past_dir}/${base_name}"
           if [ -e "$dest" ]; then
             n=2
-            while [ -e "${past_dir}/${prev_day}-${n}" ]; do
+            while [ -e "${past_dir}/${base_name}-${n}" ]; do
               n=$((n + 1))
             done
-            dest="${past_dir}/${prev_day}-${n}"
+            dest="${past_dir}/${base_name}-${n}"
           fi
 
           git mv "$today_dir" "$dest"
@@ -66,6 +85,7 @@ jobs:
           git add "$today_dir/.gitkeep"
           echo "rotated ${today_dir} -> ${dest}"
           echo "ROTATED=1" >> "$GITHUB_ENV"
+          echo "ARCHIVE_NAME=$(basename "$dest")" >> "$GITHUB_ENV"
 
       - name: Commit and push
         run: |
@@ -84,5 +104,5 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "Archive today/ as $(TZ=America/New_York date -d 'yesterday' +%Y-%m-%d)"
+          git commit -m "Archive today/ as ${ARCHIVE_NAME}"
           git push

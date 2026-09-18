@@ -7,6 +7,26 @@ on:
         description: "LeetCode problem URL (e.g. https://leetcode.com/problems/two-sum/)"
         required: true
         type: string
+      generate_python:
+        description: "Generate Python solution file"
+        required: false
+        type: boolean
+        default: true
+      generate_csharp:
+        description: "Generate C# solution file"
+        required: false
+        type: boolean
+        default: true
+      generate_cpp:
+        description: "Generate C++ solution file"
+        required: false
+        type: boolean
+        default: true
+      generate_java:
+        description: "Generate Java solution file"
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -24,6 +44,11 @@ jobs:
           python-version: "3.12"
 
       - name: Run new_problem.py
+        env:
+          GENERATE_PYTHON: ${{ inputs.generate_python }}
+          GENERATE_CSHARP: ${{ inputs.generate_csharp }}
+          GENERATE_CPP: ${{ inputs.generate_cpp }}
+          GENERATE_JAVA: ${{ inputs.generate_java }}
         run: echo "${{ inputs.leetcode_url }}" | python templates/new_problem.py
 
       - name: Commit and push changes
