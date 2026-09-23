@@ -8,14 +8,35 @@ Topics: Array, Hash Table, Binary Search, Sliding Window, Prefix Sum
 Approach:
 
 
-Time:  O()
-Space: O()
+Time:  O(n)
+Space: O(1)
 """
 
 
-class Solution:
-    def method_name(self):
-        pass
+class Solution(object):
+    def minOperations(self, nums, x):
+        """
+        :type nums: List[int]
+        :type x: int
+        :rtype: int
+        """
+        target = sum(nums) - x
+        
+        left = 0
+        total = 0
+        ans = -1
+        
+        for i in range(len(nums)):
+            total += nums[i]
+            
+            while total > target and left <= i:
+                total -= nums[left]
+                left += 1
+                
+            if total == target:
+                ans = max(ans, i - left + 1)
+                
+        return len(nums) - ans if ans != -1 else -1
 
 
 if __name__ == "__main__":
